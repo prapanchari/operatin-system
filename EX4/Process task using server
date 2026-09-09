@@ -1,0 +1,170 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+typedef struct {
+    int weight;
+    int index;
+} FreeNode;
+
+typedef struct {
+    long long freeTime;
+    int weight;
+    int index;
+} BusyNode;
+
+typedef struct {
+    FreeNode* data;
+    int size;
+} FreeHeap;
+
+typedef struct {
+    BusyNode* data;
+    int size;
+} BusyHeap;
+
+void swapFree(FreeNode* a, FreeNode* b) {
+    FreeNode temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+void pushFree(FreeHeap* heap, int weight, int index) {
+    heap->data[heap->size].weight = weight;
+    heap->data[heap->size].index = index;
+    int i = heap->size;
+    heap->size++;
+    while (i > 0) {
+        int parent = (i - 1) / 2;
+        if (heap->data[i].weight < heap->data[parent].weight ||
+            (heap->data[i].weight == heap->data[parent].weight && heap->data[i].index < heap->data[parent].index)) {
+            swapFree(&heap->data[i], &heap->data[parent]);
+            i = parent;
+        } else {
+            break;
+        }
+    }
+}
+
+FreeNode popFree(FreeHeap* heap) {
+    FreeNode top = heap->data[0];
+    heap->size--;
+    heap->data[0] = heap->data[heap->size];
+    int i = 0;
+    while (2 * i + 1 < heap->size) {
+        int left = 2 * i + 1;
+        int right = 2 * i + 2;
+        int smallest = left;
+        if (right < heap->size) {
+            if (heap->data[right].weight < heap->data[left].weight ||
+                (heap->data[right].weight == heap->data[left].weight && heap->data[right].index < heap->data[left].index)) {
+                smallest = right;
+            }
+        }
+        if (heap->data[smallest].weight < heap->data[i].weight ||
+            (heap->data[smallest].weight == heap->data[i].weight && heap->data[smallest].index < heap->data[i].index)) {
+            swapFree(&heap->data[i], &heap->data[smallest]);
+            i = smallest;
+        } else {
+            break;
+        }
+    }
+    return top;
+}
+
+void swapBusy(BusyNode* a, BusyNode* b) {
+    BusyNode temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+void pushBusy(BusyHeap* heap, long long freeTime, int weight, int index) {
+    heap->data[heap->size].freeTime = freeTime;
+    heap->data[heap->size].weight = weight;
+    heap->data[heap->size].index = index;
+    int i = heap->size;
+    heap->size++;
+    while (i > 0) {
+        int parent = (i - 1) / 2;
+        if (heap->data[i].freeTime < heap->data[parent].freeTime ||
+            (heap->data[i].freeTime == heap->data[parent].freeTime && heap->data[i].weight < heap->data[parent].weight) ||
+            (heap->data[i].freeTime == heap->data[parent].freeTime && heap->data[i].weight == heap->data[parent].weight && heap->data[i].index < heap->data[parent].index)) {
+            swapBusy(&heap->data[i], &heap->data[parent]);
+            i = parent;
+        } else {
+            break;
+        }
+    }
+}
+
+BusyNode popBusy(BusyHeap* heap) {
+    BusyNode top = heap->data[0];
+    heap->size--;
+    heap->data[0] = heap->data[heap->size];
+    int i = 0;
+    while (2 * i + 1 < heap->size) {
+        int left = 2 * i + 1;
+        int right = 2 * i + 2;
+        int smallest = left;
+        if (right < heap->size) {
+            if (heap->data[right].freeTime < heap->data[left].freeTime ||
+                (heap->data[right].freeTime == heap->data[left].freeTime && heap->data[right].weight < heap->data[left].weight) ||
+                (heap->data[right].freeTime == heap->data[left].freeTime && heap->data[right].weight == heap->data[left].weight && heap->data[right].index < heap->data[left].index)) {
+                smallest = right;
+            }
+        }
+        if (heap->data[smallest].freeTime < heap->data[i].freeTime ||
+            (heap->data[smallest].freeTime == heap->data[i].freeTime && heap->data[smallest].weight < heap->data[i].weight) ||
+            (heap->data[smallest].freeTime == heap->data[i].freeTime && heap->data[smallest].weight == heap->data[i].weight && heap->data[smallest].index < heap->data[i].index)) {
+            swapBusy(&heap->data[i], &heap->data[smallest]);
+            i = smallest;
+        } else {
+            break;
+        }
+    }
+    return top;
+}
+
+int* assignTasks(int* servers, int serversSize, int* tasks, int tasksSize, int* returnSize) {
+    FreeHeap freeHeap;
+    freeHeap.data = (FreeNode*)malloc(sizeof(FreeNode) * serversSize);
+    freeHeap.size = 0;
+
+    BusyHeap busyHeap;
+    busyHeap.data = (BusyNode*)malloc(sizeof(BusyNode) * serversSize);
+    busyHeap.size = 0;
+
+    for (int i = 0; i < serversSize; i++) {
+        pushFree(&freeHeap, servers[i], i);
+    }
+
+    int* ans = (int*)malloc(sizeof(int) * tasksSize);
+    *returnSize = tasksSize;
+    long long currTime = 0;
+
+    for (int j = 0; j < tasksSize; j++) {
+        if (currTime < j) {
+            currTime = j;
+        }
+
+        while (busyHeap.size > 0 && busyHeap.data[0].freeTime <= currTime) {
+            BusyNode node = popBusy(&busyHeap);
+            pushFree(&freeHeap, node.weight, node.index);
+        }
+
+        if (freeHeap.size == 0) {
+            currTime = busyHeap.data[0].freeTime;
+            while (busyHeap.size > 0 && busyHeap.data[0].freeTime <= currTime) {
+                BusyNode node = popBusy(&busyHeap);
+                pushFree(&freeHeap, node.weight, node.index);
+            }
+        }
+
+        FreeNode server = popFree(&freeHeap);
+        ans[j] = server.index;
+        pushBusy(&busyHeap, currTime + tasks[j], server.weight, server.index);
+    }
+
+    free(freeHeap.data);
+    free(busyHeap.data);
+    return ans;
+}
