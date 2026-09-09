@@ -1,0 +1,39 @@
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.CyclicBarrier;
+
+class H2O {
+
+    private final Semaphore hSem;
+    private final Semaphore oSem;
+    private final CyclicBarrier barrier;
+
+    public H2O() {
+        hSem = new Semaphore(2);
+        oSem = new Semaphore(1);
+        barrier = new CyclicBarrier(3);
+    }
+
+    public void hydrogen(Runnable releaseHydrogen) throws InterruptedException {
+        hSem.acquire();
+        try {
+            barrier.await();
+            releaseHydrogen.run();
+        } catch (Exception e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            hSem.release();
+        }
+    }
+
+    public void oxygen(Runnable releaseOxygen) throws InterruptedException {
+        oSem.acquire();
+        try {
+            barrier.await();
+            releaseOxygen.run();
+        } catch (Exception e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            oSem.release();
+        }
+    }
+}
