@@ -1,0 +1,89 @@
+import java.util.HashMap;
+import java.util.Map;
+
+public class LRUCache {
+    
+    // Definition for the Doubly Linked List Node
+    private class Node {
+        int key;
+        int value;
+        Node prev;
+        Node next;
+        
+        Node(int key, int value) {
+            this.key = key;
+            this.value = value;
+        }
+    }
+    
+    private final int capacity;
+    private final Map<Integer, Node> map;
+    private final Node head;
+    private final Node tail;
+
+    // Constructor to initialize the cache with a specified capacity
+    public LRUCache(int capacity) {
+        this.capacity = capacity;
+        this.map = new HashMap<>();
+        
+        // Initialize dummy head and tail nodes to simplify edge cases
+        this.head = new Node(-1, -1);
+        this.tail = new Node(-1, -1);
+        head.next = tail;
+        tail.prev = head;
+    }
+    
+    // Fetches an item value from the cache
+    public int get(int key) {
+        if (!map.containsKey(key)) {
+            return -1;
+        }
+        
+        Node node = map.get(key);
+        moveToHead(node); // Item was accessed, move it to the front
+        return node.value;
+    }
+    
+    // Puts a new value or updates an existing pair
+    public void put(int key, int value) {
+        if (map.containsKey(key)) {
+            // Key exists: update its value and promote it to the front
+            Node node = map.get(key);
+            node.value = value;
+            moveToHead(node);
+        } else {
+            // Key doesn't exist: Create a new node
+            Node newNode = new Node(key, value);
+            map.put(key, newNode);
+            addToHead(newNode);
+            
+            // Check capacity threshold
+            if (map.size() > capacity) {
+                // Evict the Least Recently Used (LRU) node, which is right before dummy tail
+                Node lruNode = tail.prev;
+                removeNode(lruNode);
+                map.remove(lruNode.key); // Remove from hash map
+            }
+        }
+    }
+    
+    // Helper function: Inserts a node immediately after the dummy head
+    private void addToHead(Node node) {
+        node.next = head.next;
+        node.next.prev = node;
+        node.prev = head;
+        head.next = node;
+    }
+    
+    // Helper function: Unlinks an existing node from the list
+    private void removeNode(Node node) {
+        node.prev.next = node.next;
+        node.next.prev = node.prev;
+    }
+    
+    // Helper function: Refreshes a node by moving it to the top priority position
+    private void moveToHead(Node node) {
+        removeNode(node);
+        addToHead(node);
+    }
+}
