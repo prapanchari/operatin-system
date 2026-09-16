@@ -1,0 +1,96 @@
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+
+public class LFUCache {
+    
+    // Definition for the cache item data node
+    private class Node {
+        int key;
+        int value;
+        int frequency;
+
+        Node(int key, int value) {
+            this.key = key;
+            this.value = value;
+            this.frequency = 1; // Initial frequency is always 1 upon creation
+        }
+    }
+
+    private final int capacity;
+    private int minFrequency;
+    private final Map<Integer, Node> cache;
+    // Map from frequency counts to a LinkedHashSet of nodes (acts as a Doubly Linked List)
+    private final Map<Integer, LinkedHashSet<Node>> frequencyMap;
+
+    // Constructor to initialize the cache parameters
+    public LFUCache(int capacity) {
+        this.capacity = capacity;
+        this.minFrequency = 0;
+        this.cache = new HashMap<>();
+        this.frequencyMap = new HashMap<>();
+    }
+    
+    // Gets the value of the key if it exists in the cache
+    public int get(int key) {
+        if (!cache.containsKey(key)) {
+            return -1;
+        }
+        Node node = cache.get(key);
+        updateFrequency(node);
+        return node.value;
+    }
+    
+    // Inserts or updates a key-value pair in the cache
+    public void put(int key, int value) {
+        if (capacity <= 0) {
+            return;
+        }
+
+        if (cache.containsKey(key)) {
+            // Key exists: update its value and increment its frequency tier
+            Node node = cache.get(key);
+            node.value = value;
+            updateFrequency(node);
+        } else {
+            // Key doesn't exist: Evict if cache is at max capacity
+            if (cache.size() >= capacity) {
+                evictLFUKey();
+            }
+
+            // Create and insert the new node
+            Node newNode = new Node(key, value);
+            cache.put(key, newNode);
+            
+            // New items start at frequency 1
+            minFrequency = 1;
+            frequencyMap.computeIfAbsent(1, k -> new LinkedHashSet<>()).add(newNode);
+        }
+    }
+
+    // Helper function: Increments a node's frequency and relocates it to the next tier
+    private void updateFrequency(Node node) {
+        int currentFreq = node.frequency;
+        LinkedHashSet<Node> currentList = frequencyMap.get(currentFreq);
+        currentList.remove(node);
+
+        // If the current minFrequency list becomes empty, increment the tracking pointer
+        if (currentFreq == minFrequency && currentList.isEmpty()) {
+            minFrequency++;
+        }
+
+        // Advance the node's individual count metric
+        node.frequency++;
+        frequencyMap.computeIfAbsent(node.frequency, k -> new LinkedHashSet<>()).add(node);
+    }
+
+    // Helper function: Pinpoints and invalidates the LFU/LRU element
+    private void evictLFUKey() {
+        LinkedHashSet<Node> targetTier = frequencyMap.get(minFrequency);
+        // The first element in Java's LinkedHashSet iterator represents the oldest (LRU) item
+        Node lruNode = targetTier.iterator().next();
+        
+        targetTier.remove(lruNode);
+        cache.remove(lruNode.key);
+    }
+}
